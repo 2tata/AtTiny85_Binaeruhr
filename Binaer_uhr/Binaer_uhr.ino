@@ -9,130 +9,89 @@
 #***********************************************
 */
 
-//I2C Bibilioheken einbinden 
+//Debuggingmodus starten
+//#define DEBUG
+
+//I2C Bibiliohek einbinden 
 #include <TinyWireM.h>
 #include <USI_TWI_Master.h>
 
-//Deffinierung der anzahl der Tage pro monat{Ja,Fe,Mä,Ap,Ma,Jun,Jul,Au,Se,Ok,No,De}
+
+
+
+//Deffinierung der anzahl der Tage pro monat
+//                       {Ja,Fe,Mä,Ap,Ma,Jun,Jul,Au,Se,Ok,No,De}
 const byte DaysInMonth[]={31,28,31,30,31,30,31,31,30,31,30,31};
-
-//I2C adresse der RTC 
-const byte add = 0x68; //Address of RTC
-
-//Addressirung der einzelnen LEDs in Richtiger reienfolge 38 Zahlen sind erforderlich 
+//I2C adresse der RTC
+const byte add=B01101000;
+//Addressirung der einzelnen LEDs in Richtiger reienfolge 38 Zahlen sind erforderlich
 //                              Sekunden                  Minuten                  Stunden                    Tage                    Monate                  Jahre                Wochentage
-const byte BitTwiddling[]={47,39,31,22,13,3,0,0,/**/46,38,30,21,12,4,0,0,/**/45,37,29,20,10,0,0,0,/**/44,36,28,19,11,0,0,0,/**/43,35,27,18,0,0,0,0,/**/42,34,26,17,9,2,0,0,/**/41,33,25,23,14,5,1,0};
-
-//Pins
+const byte BitTwiddling[]={47,39,31,22,13,3,0,0,    46,38,30,21,12,4,0,0,   45,37,29,20,10,0,0,0,    44,36,28,19,11,0,0,0,     43,35,27,18,0,0,0,0,    42,34,26,17,9,2,0,0,   41,33,25,23,14,5,1,0};
+//0. Bit SEC->41. Bit ShR,...
+// RTC Pins
 const byte Data=2;
 const byte Clock=4;
 const byte MClock=3;
-const byte Cont=1; //SquareWave von RTC
 
-byte SEC,MIN,HOUR,DAY,MONTH,YEAR,DAYOFWEEK;//Zwischenspeicher der RTC
-byte ContPin=0; // Stores last SQW-State
-
-boolean Sommerzeit=0; //Sommerzeit überprüfen
-
+byte SEC=0,MIN=0,HOUR=0,DAY=1,MONTH=1,YEAR=0,DAYOFWEEK=1;
+boolean Sommerzeit=0;
 byte *DataOut=(byte*) malloc(6);
+
+int count=0;
+
+#ifdef DEBUG
+//Serial Bibiliothek einbinden für debugging
+#include <SoftwareSerial.h>
+#define rx -1
+#define tx 3
+SoftwareSerial mySerial(rx,tx);
+#endif
+
 void setup()
 {
-    //RTC i2c kommunikation
+ TinyWireM.begin();
+ ZeitEinlesen();
  
- byte c = TinyWireM.receive(); //Lese adresse 0 (SEC u. Clock halt)
- //Sekunden Auslesen u. RTC einschalten  
- if(bitRead(c,7))
-  {
-   TinyWireM.beginTransmission(add);
-   TinyWireM.send(0);
-   TinyWireM.send(c & B01111111); //disable clock halt
-   TinyWireM.endTransmission(); 
-  }
- c &= B01111111;
- SEC=BCD_decode(c,3);
-
- //Minuten Auslesen 
- TinyWireM.beginTransmission(add);
- TinyWireM.send(1);                
- TinyWireM.endTransmission();          
- TinyWireM.requestFrom(add,1); 
- c=TinyWireM.receive();
- MIN=BCD_decode(c,3);
-
- //Stunden Auslesen 
- TinyWireM.beginTransmission(add);
- TinyWireM.send(2);                
- TinyWireM.endTransmission();          
- TinyWireM.requestFrom(add,1); 
- c=TinyWireM.receive();
- HOUR=BCD_decode(c,2);
- if(bitRead(c,6))
-  {HOUR =BCD_decode(c,1);
-   HOUR+=12*bitRead(c,5);
-  }
- /*
- //Day of Week
- TinyWireM.beginTransmission(add);
- TinyWireM.send(3);
- TinyWireM.endTransmission();
- TinyWireM.requestFrom(add,1);
- c=TinyWireM.receive();
- DAYOFWEEK=c;
-*/
- //Monatstage auslesen
- TinyWireM.beginTransmission(add);
- TinyWireM.send(4);                
- TinyWireM.endTransmission();          
- TinyWireM.requestFrom(add,1); 
- c=TinyWireM.receive();
- DAY=BCD_decode(c,2);
- 
- //Monaten Auslesen 
- TinyWireM.beginTransmission(add);
- TinyWireM.send(5);                
- TinyWireM.endTransmission();          
- TinyWireM.requestFrom(add,1); 
- c=TinyWireM.receive();
- MONTH=BCD_decode(c,1);
-
- //Jahre Auslesen 
- TinyWireM.beginTransmission(add);
- TinyWireM.send(6);                
- TinyWireM.endTransmission();          
- TinyWireM.requestFrom(add,1); 
- c=TinyWireM.receive();
- YEAR=BCD_decode(c,4);
- 
- //SQWE Enablen
- TinyWireM.beginTransmission(add);
- TinyWireM.send(7);
- TinyWireM.send(B00010000); 
- TinyWireM.endTransmission();
-
- DAYOFWEEK=DoW_Gauss(YEAR+2000,MONTH,DAY);
- 
- SetSommerzeit();
- HOUR+=Sommerzeit;
  pinMode(Data,OUTPUT);
  pinMode(Clock,OUTPUT);
  pinMode(MClock,OUTPUT);
- pinMode(Cont,INPUT);
  digitalWrite(Data,0);
  digitalWrite(Clock,0);
  digitalWrite(MClock,0);
+ #ifdef DEBUG
+ mySerial.begin(4800);
+ #endif
 }
 
 
 void loop()
 {
- int d;
- d=digitalRead(Cont)-ContPin;
- if(d==1)
-  {ContPin=1;
-   addOneSec();
+#ifdef DEBUG
+  mySerial.println("Angezeigte zeit: ");
+  mySerial.print("Date: ");
+  mySerial.print(YEAR);
+  mySerial.print("/");
+  mySerial.print(MONTH);
+  mySerial.print("/");
+  mySerial.print(DAY);
+  mySerial.print("  ");
+  mySerial.print(HOUR);
+  mySerial.print(":");
+  mySerial.print(MIN);
+  mySerial.print(":");
+  mySerial.print(SEC);
+  mySerial.print("  Sommerzeit:");
+  mySerial.println(Sommerzeit);
+  mySerial.println("");
+#endif
+ delay(1000);
+ addOneSec();
+ count++;
+ if(count==62)
+  {
+   ZeitEinlesen();
+   count=0;
   }
- if(d==-1)
-  {ContPin=0;} 
 }
 
 void addOneSec()
@@ -161,7 +120,7 @@ void addOneSec()
   {YEAR++;MONTH=1;}
  writeOutTime();  
 }
-//Prüfen ob Sommer oder Winterzeit ist 
+
 byte SoWi()
 {if((Sommerzeit) && (MONTH==10) && (DAY>24) && (DAYOFWEEK==6) && (HOUR==3))
  {
@@ -250,14 +209,48 @@ void shift(byte* X)
  digitalWrite(Clock,0);
  digitalWrite(MClock,0); 
  for(m=5;m>-1;m--)
-   {
-     for(n=7;n>-1;n--)
-    {
-      digitalWrite(Data,(byte(X[m] & (byte(1)<<n)))>0);
+   {for(n=7;n>-1;n--)
+    {digitalWrite(Data,(byte(X[m] & (byte(1)<<n)))>0);
      digitalWrite(Clock,1);
      digitalWrite(Clock,0);
     }     
    }
  digitalWrite(MClock,1);
  digitalWrite(MClock,0); 
+}
+
+void ZeitEinlesen()
+{
+ byte c;
+ 
+ TinyWireM.beginTransmission(add);
+ TinyWireM.send(0);
+ TinyWireM.endTransmission();
+ 
+ 
+ if(!TinyWireM.requestFrom(add, byte(7))) 
+ {
+ c=TinyWireM.receive(); 
+ SEC=BCD_decode(c,3);
+ 
+ c=TinyWireM.receive();
+ MIN=BCD_decode(c,3);
+
+ c=TinyWireM.receive();
+ HOUR=BCD_decode(c,2);
+ 
+ c=TinyWireM.receive();
+          
+ c=TinyWireM.receive();
+ DAY=BCD_decode(c,2);
+           
+ c=TinyWireM.receive();
+ MONTH=BCD_decode(c,1);
+
+ c=TinyWireM.receive();
+ YEAR=BCD_decode(c,4);
+ DAYOFWEEK=DoW_Gauss(YEAR+2000,MONTH,DAY);
+ SetSommerzeit();
+ HOUR+=Sommerzeit;
+ } 
 }
