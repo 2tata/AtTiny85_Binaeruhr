@@ -35,8 +35,6 @@ byte *DataOut=(byte*) malloc(6);
 
 int count=0;
 
-byte date[10];
-
 #ifdef DEBUG
 //Including serial libray for debugging
 #include <SoftwareSerial.h>
@@ -252,82 +250,53 @@ void shift(byte* X)
 
 void ZeitEinlesen()
 {
-  for(byte i = 0; i<3; i++)
+  TinyWireM.beginTransmission(add);
+  TinyWireM.send(0);
+  TinyWireM.endTransmission();
+  byte c;
+  while (!TinyWireM.requestFrom(add, byte(7)))
   {
-    byte c;
+    c=TinyWireM.receive();
+    SEC=BCD_decode(c,3);
 
-    TinyWireM.beginTransmission(add);
-    TinyWireM.send(0);
-    TinyWireM.endTransmission();
+    c=TinyWireM.receive();
+    MIN=BCD_decode(c,3);
 
+    c=TinyWireM.receive();
+    HOUR=BCD_decode(c,2);
 
-    if(!TinyWireM.requestFrom(add, byte(7)))
-    {
-      date[0] = YEAR;
-      date[1] = MONTH;
-      date[2] = DAY;
-      c=TinyWireM.receive();
-      SEC=BCD_decode(c,3);
+    c=TinyWireM.receive();
 
-      c=TinyWireM.receive();
-      MIN=BCD_decode(c,3);
+    c=TinyWireM.receive();
+    DAY=BCD_decode(c,2);
 
-      c=TinyWireM.receive();
-      HOUR=BCD_decode(c,2);
+    c=TinyWireM.receive();
+    MONTH=BCD_decode(c,1);
 
-      c=TinyWireM.receive();
-
-      c=TinyWireM.receive();
-      DAY=BCD_decode(c,2);
-
-      c=TinyWireM.receive();
-      MONTH=BCD_decode(c,1);
-
-      c=TinyWireM.receive();
-      YEAR=BCD_decode(c,4);
-      DAYOFWEEK=DoW_Gauss(YEAR+2000,MONTH,DAY);
+    c=TinyWireM.receive();
+    YEAR=BCD_decode(c,4);
+    DAYOFWEEK=DoW_Gauss(YEAR+2000,MONTH,DAY);
 #ifdef DEBUG
-      mySerial.print("Vergleich: ");
-      mySerial.print(YEAR);
-      mySerial.print(" = ");
-      mySerial.print(date[0]);
-      mySerial.println(" ");
-
-      mySerial.print(MONTH);
-      mySerial.print(" = ");
-      mySerial.print(date[1]);
-      mySerial.println(" ");
-
-      mySerial.print(DAY);
-      mySerial.print(" = ");
-      mySerial.print(date[2]);
-      mySerial.println(" ");
-
-      mySerial.print("");
-      mySerial.println("RTC zeit: ");
-      mySerial.print("Date: ");
-      mySerial.print(YEAR);
-      mySerial.print("/");
-      mySerial.print(MONTH);
-      mySerial.print("/");
-      mySerial.print(DAY);
-      mySerial.print("  ");
-      mySerial.print(HOUR);
-      mySerial.print(":");
-      mySerial.print(MIN);
-      mySerial.print(":");
-      mySerial.print(SEC);
-      mySerial.print("  Sommerzeit:");
-      mySerial.println(Sommerzeit);
-      mySerial.println("");
+    mySerial.print("");
+    mySerial.println("RTC zeit: ");
+    mySerial.print("Date: ");
+    mySerial.print(YEAR);
+    mySerial.print("/");
+    mySerial.print(MONTH);
+    mySerial.print("/");
+    mySerial.print(DAY);
+    mySerial.print("  ");
+    mySerial.print(HOUR);
+    mySerial.print(":");
+    mySerial.print(MIN);
+    mySerial.print(":");
+    mySerial.print(SEC);
+    mySerial.print("  Sommerzeit:");
+    mySerial.println(Sommerzeit);
+    mySerial.println("");
 #endif
-      SetSommerzeit();
-      HOUR+=Sommerzeit;
-      if(YEAR == date[0] && MONTH == date[1] && DAY == date[2])
-      {
-        i = 4;
-      }
-    }
+    SetSommerzeit();
+    HOUR+=Sommerzeit;
   }
 }
 

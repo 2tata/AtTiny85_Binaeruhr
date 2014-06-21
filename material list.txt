@@ -9,3 +9,5 @@
 7. 150 ohm resistance	 40		0,103€
 8. 4,7 k ohm resistance	  3		0,103€
 9. insulated wire			0.70€
+-----------------------------------------------
+Total:					5,836€
