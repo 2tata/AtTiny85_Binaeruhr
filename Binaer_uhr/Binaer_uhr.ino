@@ -10,9 +10,9 @@
 */
 
 //start debugmode
-//#define DEBUG
+#define DEBUG
 
-//include I2C libray
+//include I2C library
 #include <TinyWireM.h>
 #include <USI_TWI_Master.h>
 
@@ -36,7 +36,7 @@ byte *DataOut=(byte*) malloc(6);
 int count=0;
 
 #ifdef DEBUG
-//Including serial libray for debugging
+//Including serial library for debugging
 #include <SoftwareSerial.h>
 #define rx -1
 #define tx 3
@@ -45,7 +45,6 @@ SoftwareSerial mySerial(rx,tx);
 
 void setup()
 {
-  TinyWireM.begin();
   ZeitEinlesen();
 
   pinMode(Data,OUTPUT);
@@ -250,11 +249,12 @@ void shift(byte* X)
 
 void ZeitEinlesen()
 {
+  TinyWireM.begin();
   TinyWireM.beginTransmission(add);
   TinyWireM.send(0);
   TinyWireM.endTransmission();
   byte c;
-  while (!TinyWireM.requestFrom(add, byte(7)))
+  if (!TinyWireM.requestFrom(add, byte(7)))
   {
     c=TinyWireM.receive();
     SEC=BCD_decode(c,3);
