@@ -1,13 +1,13 @@
 	name		number		price
 
 1. ATTINY 85-20 PU	  1		0,95€
-2. 74HC 595		  6		0,25€
+2. 74HC 595		  6		1,50€
 3. DS 1307		  1		2,15€
 4. CR 2032P-H		  1		1,10€
 5. 32,768 MS3V-12,5	  1		0,42€
-6. LED 5MM RT		 40		0,06€
-7. 150 ohm resistance	 40		0,103€
-8. 4,7 k ohm resistance	  3		0,103€
+6. LED 5MM RT		 40		2,40€
+7. 150 ohm resistance	 40		4,12€
+8. 4,7 k ohm resistance	  3		0,309€
 9. insulated wire			0.70€
 -----------------------------------------------
-Total:					5,836€
+Total:					13,999€
