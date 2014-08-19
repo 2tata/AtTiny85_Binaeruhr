@@ -19,14 +19,12 @@
 
 //define the day count per month
 //                       {Ja,Fe,Mä,Ap,Ma,Jun,Jul,Au,Se,Ok,No,De}
-const byte DaysInMonth[]={
-  31,28,31,30,31,30,31,31,30,31,30,31};
+const byte DaysInMonth[]={ 31,28,31,30,31,30,31,31,30,31,30,31};
 //I2C adress of the RTC
 const byte add=B01101000;
 //Adressing of the LEDs in right range
 //                              seconds                   minutes                  houers                    days                    months                  years                day of week
-const byte BitTwiddling[]={
-  47,39,31,22,13,3,0,0,    46,38,30,21,12,4,0,0,   45,37,29,20,10,0,0,0,    44,36,28,19,11,0,0,0,     43,35,27,18,0,0,0,0,    42,34,26,17,9,2,0,0,   41,33,25,23,14,5,1,0};
+const byte BitTwiddling[]={47,39,31,22,13,3,0,0,    46,38,30,21,12,4,0,0,   45,37,29,20,10,0,0,0,    44,36,28,19,11,0,0,0,     43,35,27,18,0,0,0,0,    42,34,26,17,9,2,0,0,   41,33,25,23,14,5,1,0};
 // RTC Pins
 const byte Data=2;
 const byte Clock=4;
@@ -166,8 +164,7 @@ byte WiSo()
 
 byte DoW_Gauss(word year,byte month,byte day)
 {
-  const byte m[]={
-    0,0,3,2,5,0,3,5,1,4,6,2,4                                      };
+  const byte m[]={0,0,3,2,5,0,3,5,1,4,6,2,4};
   byte y=(year%100)-(month==1 | month==2);
   byte c=(year/100)-(!(year%400));
   return (((day+m[month]+y+byte(y/4)+byte(c/4)-2*c+203-1)%7));
