@@ -1,16 +1,17 @@
 /*
 #***********************************************
-#  Dateiname:  ..............  Binaer_uhr.ino  *
-#  Autor:  ..................  Jan-Tarek Butt  *
-#  Sprache:  .............................  C  *
-#  Dialekt:  .......................  Arduino  *
-#  Hardware:  .....................  AtTiny85  *
-#  Datum:  .......................  26.6.2013  *
-#***********************************************
-*/
+ #  Dateiname:  ..............  Binaer_uhr.ino  *
+ #  Autor:  ..................  Jan-Tarek Butt  *
+ #  Sprache:  .............................  C  *
+ #  Dialekt:  .......................  Arduino  *
+ #  Hardware:  .....................  AtTiny85  *
+ #  Datum:  .......................  26.6.2013  *
+ #***********************************************
+ */
 
 //start debugmode
-#define DEBUG
+//#define DEBUG
+//#include <SoftwareSerial.h>
 
 //include I2C library
 #include <TinyWireM.h>
@@ -18,16 +19,21 @@
 
 //define the day count per month
 //                       {Ja,Fe,Mä,Ap,Ma,Jun,Jul,Au,Se,Ok,No,De}
-const byte DaysInMonth[]={31,28,31,30,31,30,31,31,30,31,30,31};
+const byte DaysInMonth[]={
+  31,28,31,30,31,30,31,31,30,31,30,31};
 //I2C adress of the RTC
 const byte add=B01101000;
 //Adressing of the LEDs in right range
 //                              seconds                   minutes                  houers                    days                    months                  years                day of week
-const byte BitTwiddling[]={47,39,31,22,13,3,0,0,    46,38,30,21,12,4,0,0,   45,37,29,20,10,0,0,0,    44,36,28,19,11,0,0,0,     43,35,27,18,0,0,0,0,    42,34,26,17,9,2,0,0,   41,33,25,23,14,5,1,0};
+const byte BitTwiddling[]={
+  47,39,31,22,13,3,0,0,    46,38,30,21,12,4,0,0,   45,37,29,20,10,0,0,0,    44,36,28,19,11,0,0,0,     43,35,27,18,0,0,0,0,    42,34,26,17,9,2,0,0,   41,33,25,23,14,5,1,0};
 // RTC Pins
 const byte Data=2;
 const byte Clock=4;
 const byte MClock=3;
+
+// limit for RTC reading
+byte ReadRound = 0;
 
 byte SEC=0,MIN=0,HOUR=0,DAY=1,MONTH=1,YEAR=0,DAYOFWEEK=1;
 boolean Sommerzeit=0;
@@ -37,7 +43,6 @@ int count=0;
 
 #ifdef DEBUG
 //Including serial library for debugging
-#include <SoftwareSerial.h>
 #define rx -1
 #define tx 3
 SoftwareSerial mySerial(rx,tx);
@@ -162,7 +167,7 @@ byte WiSo()
 byte DoW_Gauss(word year,byte month,byte day)
 {
   const byte m[]={
-    0,0,3,2,5,0,3,5,1,4,6,2,4  };
+    0,0,3,2,5,0,3,5,1,4,6,2,4                                      };
   byte y=(year%100)-(month==1 | month==2);
   byte c=(year/100)-(!(year%400));
   return (((day+m[month]+y+byte(y/4)+byte(c/4)-2*c+203-1)%7));
@@ -249,6 +254,7 @@ void shift(byte* X)
 
 void ZeitEinlesen()
 {
+  byte rSEC=0,rMIN=0,rHOUR=0,rDAY=1,rMONTH=1,rYEAR=0,rDAYOFWEEK=1;
   TinyWireM.begin();
   TinyWireM.beginTransmission(add);
   TinyWireM.send(0);
@@ -257,46 +263,60 @@ void ZeitEinlesen()
   if (!TinyWireM.requestFrom(add, byte(7)))
   {
     c=TinyWireM.receive();
-    SEC=BCD_decode(c,3);
+    rSEC=BCD_decode(c,3);
 
     c=TinyWireM.receive();
-    MIN=BCD_decode(c,3);
+    rMIN=BCD_decode(c,3);
 
     c=TinyWireM.receive();
-    HOUR=BCD_decode(c,2);
+    rHOUR=BCD_decode(c,2);
 
     c=TinyWireM.receive();
 
     c=TinyWireM.receive();
-    DAY=BCD_decode(c,2);
+    rDAY=BCD_decode(c,2);
 
     c=TinyWireM.receive();
-    MONTH=BCD_decode(c,1);
+    rMONTH=BCD_decode(c,1);
 
     c=TinyWireM.receive();
-    YEAR=BCD_decode(c,4);
-    DAYOFWEEK=DoW_Gauss(YEAR+2000,MONTH,DAY);
+    rYEAR=BCD_decode(c,4);
+    rDAYOFWEEK=DoW_Gauss(rYEAR+2000,rMONTH,rDAY);
 #ifdef DEBUG
     mySerial.print("");
     mySerial.println("RTC zeit: ");
     mySerial.print("Date: ");
-    mySerial.print(YEAR);
+    mySerial.print(rYEAR);
     mySerial.print("/");
-    mySerial.print(MONTH);
+    mySerial.print(rMONTH);
     mySerial.print("/");
-    mySerial.print(DAY);
+    mySerial.print(rDAY);
     mySerial.print("  ");
-    mySerial.print(HOUR);
+    mySerial.print(rHOUR);
     mySerial.print(":");
-    mySerial.print(MIN);
+    mySerial.print(rMIN);
     mySerial.print(":");
-    mySerial.print(SEC);
+    mySerial.print(rSEC);
     mySerial.print("  Sommerzeit:");
     mySerial.println(Sommerzeit);
     mySerial.println("");
 #endif
+    if(((rYEAR == YEAR || (rYEAR -1)==YEAR || (rYEAR +1)==YEAR) && (rMONTH == MONTH || (rMONTH -1)==MONTH || (rMONTH +1)==MONTH)) || (ReadRound <= 0 || ReadRound >= 4))
+    {
+      SEC=rSEC;
+      MIN=rMIN;
+      HOUR=rHOUR;
+      DAY=rDAY;
+      MONTH=rMONTH;
+      YEAR=rYEAR;
+      DAYOFWEEK=rDAYOFWEEK;
+      ReadRound = 1;
+    }
+    else
+    {
+      ReadRound ++;
+    }
     SetSommerzeit();
     HOUR+=Sommerzeit;
   }
 }
-
